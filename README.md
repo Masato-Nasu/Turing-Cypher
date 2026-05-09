@@ -42,41 +42,6 @@ It inhabits the generative conditions from which the organic form emerges.
 
 Turing Cypher は、QRコードやバーコードのような明示的な記号ではなく、反応拡散によって生まれる有機的な形の中に情報を宿す実験です。
 
-## Deploy
-
-Cloudflare Pages にデプロイする場合:
-
-```powershell
-cd "$env:USERPROFILE\Desktop\Turing_Cypher"
-npx wrangler pages deploy . --project-name turing-cypher
-```
-
-デプロイ後:
-
-```text
-https://turing-cypher.pages.dev/
-```
-
-PWAキャッシュが残る場合は、クエリ付きで確認します。
-
-```text
-https://turing-cypher.pages.dev/?v=turing-clean-text-1
-```
-
-## Files
-
-```text
-index.html
-style.css
-app.js
-manifest.webmanifest
-sw.js
-icon-192.png
-icon-512.png
-screenshot1.png
-README.md
-```
-
 ## Tags
 
 `#PWA` `#TuringCypher` `#ReactionDiffusion` `#GrayScott` `#VibeCoding`
