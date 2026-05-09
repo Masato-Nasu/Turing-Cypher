@@ -11,7 +11,7 @@ https://turing-cypher.pages.dev/
 ## Screenshot
 
 <p align="center">
-  <img src="./screenshot1.png" alt="Turing Cypher screenshot" width="720">
+  <img src="./screenshot1.png" alt="screenshot1.png" width="720">
 </p>
 
 ## Features
