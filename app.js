@@ -1,16 +1,26 @@
 (() => {
   'use strict';
 
-  const VERSION = 3;
-  const APP_BUILD = 'turing-clean-text-ui-jp-en-2026-05-09';
-  const BIT_COUNT = 128;
-  const MAX_SLUG = 16;
+  const VERSION = 5;
+  const APP_BUILD = 'turing-any-url-adaptive-bits-2026-05-09';
+  const MAX_BIT_COUNT = 384;
+  const BIT_COUNT_STEPS = [128, 160, 192, 224, 256, 288, 320, 352, 384];
+  let BIT_COUNT = 160;
+  let activeBitCount = 160;
   const VERIFIER_BITS = 24;
   const AP28_BINARY_THRESHOLD = 0.54;
   const AP28_EDGE_GAIN = 28;
-  const PREFIXES = ['https://masato-lab.pages.dev/'];
-  const PATH_CLASSES = ['', 'tools', 'portfolio', 'peripheral-memory', 'about'];
-  const SLUG32 = 'abcdefghijklmnopqrstuvwxyz-01234';
+  const URL_ALPH = 'abcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&()*+,;=%';
+  const SCHEMES = ['https://', 'http://', ''];
+  function maxRestForBitCount(bitCount) { return Math.floor((bitCount - 4 - 2 - 6 - VERIFIER_BITS) / 6); }
+  function bitCountForRestLength(len) {
+    for (const bc of BIT_COUNT_STEPS) {
+      if (len <= maxRestForBitCount(bc)) return bc;
+    }
+    return null;
+  }
+  function maxRestOverall() { return maxRestForBitCount(MAX_BIT_COUNT); }
+  function setBitCount(bitCount) { BIT_COUNT = bitCount; activeBitCount = bitCount; }
 
   const $ = (id) => document.getElementById(id);
   const ui = {
@@ -33,7 +43,7 @@
       decryptTitle: 'URLに戻す',
       decryptDesc: 'PNGと、作った時と同じ合い言葉を入れます。',
       targetUrl: '入れるURL',
-      targetUrlHint: '対応：masato-lab.pages.dev の tools / portfolio / peripheral-memory / about。slugは16文字まで。',
+      targetUrlHint: 'http / https のURLを入れられます。とても長いURLは1枚に収まらない場合があります。',
       keySeed: '合い言葉（暗号化用）',
       keySeedHint: 'この合い言葉がないと、あとでURLに戻せません。',
       decodeKeySeed: '合い言葉（復号用・必須）',
@@ -54,7 +64,7 @@
       guide1: 'URLと合い言葉を入れて「模様を作る」を押します。',
       guide2: 'できたPNGを保存します。',
       guide3: '復号するときは、PNGを選び、同じ合い言葉を入れて「読む」を押します。',
-            readyLog: 'Ready.\n\n1. URLを入れる\n2. 合い言葉を入れる\n3. 模様を作る\n4. PNGと同じ合い言葉で読む\n\n対応URL：\nhttps://masato-lab.pages.dev/{tools|portfolio|peripheral-memory|about}/slug\n\nSlug: 最大16文字。使用文字は a-z, hyphen, 0-4。',
+            readyLog: 'Ready.\n\n1. URLを入れる\n2. 合い言葉を入れる\n3. 模様を作る\n4. PNGと同じ合い言葉で読む\n\nURL例：\nhttps://masato-lab.pages.dev/portfolio/multiverse\nhttps://compe.japandesign.ne.jp/category/product/',
       runningPacket: '暗号画像を作っています。少し待ってください。',
       generatedDecode: '模様ができました。読み取り確認中です。',
       decodingCurrent: '模様を読んでいます。',
@@ -71,13 +81,13 @@
     en: {
       subtitle: 'Turn a URL into one pattern. Use the same passphrase to bring the URL back.',
       leadTitle: 'What it does',
-      leadBody: 'For short MASATO-LAB URLs. Make a pattern PNG, then recover the URL from that PNG.',
+      leadBody: 'Make a pattern PNG, then recover the URL from that PNG.',
       encryptTitle: 'Make pattern',
       encryptDesc: 'Enter a URL and passphrase to make an encrypted pattern.',
       decryptTitle: 'Back to URL',
       decryptDesc: 'Use the PNG and the same passphrase used to make it.',
       targetUrl: 'URL to put in',
-      targetUrlHint: 'Supported: masato-lab.pages.dev tools / portfolio / peripheral-memory / about. Slug max 16 characters.',
+      targetUrlHint: 'Enter an http / https URL. Very long URLs may not fit into one pattern.',
       keySeed: 'Passphrase for making',
       keySeedHint: 'You need this passphrase later to recover the URL.',
       decodeKeySeed: 'Passphrase for reading / required',
@@ -98,8 +108,7 @@
       guide1: 'Enter a URL and passphrase, then press “Make pattern.”',
       guide2: 'Save the PNG.',
       guide3: 'To decode, choose the PNG and enter the same passphrase.',
-      capacityBody: 'This version is for short MASATO-LAB URLs. Long text and arbitrary URLs are separate research.',
-      readyLog: 'Ready.\n\n1. Enter a URL\n2. Enter a passphrase\n3. Make a pattern\n4. Read it back with the same passphrase\n\nSupported URL:\nhttps://masato-lab.pages.dev/{tools|portfolio|peripheral-memory|about}/slug\n\nSlug: max 16 characters. Charset: a-z, hyphen, 0-4.',
+            readyLog: 'Ready.\n\n1. Enter a URL\n2. Enter a passphrase\n3. Make a pattern\n4. Read it back with the same passphrase\n\nURL examples:\nhttps://masato-lab.pages.dev/portfolio/multiverse\nhttps://compe.japandesign.ne.jp/category/product/',
       runningPacket: 'Making the encrypted image. Please wait a moment.',
       generatedDecode: 'Pattern created. Checking readability.',
       decodingCurrent: 'Reading the pattern.',
@@ -173,7 +182,7 @@
 
   function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
-  function normalizeUrl(url) { return String(url || '').trim(); }
+
   function intBits(value, width) {
     const out = [];
     for (let shift = width - 1; shift >= 0; shift--) out.push((value >> shift) & 1);
@@ -198,7 +207,11 @@
   }
   async function hmacSha256Bytes(key, message) {
     const cryptoKey = await crypto.subtle.importKey(
-      'raw', new TextEncoder().encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+      'raw',
+      new TextEncoder().encode(key),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
     );
     return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(message)));
   }
@@ -214,86 +227,118 @@
     return Uint8Array.from(bytesToBits(await hmacSha256Bytes(key, 'AP52.2-PWA|verifier|' + url), VERIFIER_BITS));
   }
 
-  function splitUrl(url) {
-    url = normalizeUrl(url);
-    for (let prefixId = 0; prefixId < PREFIXES.length; prefixId++) {
-      const prefix = PREFIXES[prefixId];
-      if (!url.startsWith(prefix)) continue;
-      const rest = url.slice(prefix.length).replace(/^\/+|\/+$/g, '');
-      if (rest === '') return { prefixId, pathId: 0, slug: '' };
-      const parts = rest.split('/');
-      const first = parts[0];
-      const tail = parts.slice(1).join('/');
-      for (let pathId = 1; pathId < PATH_CLASSES.length; pathId++) {
-        if (first === PATH_CLASSES[pathId]) return { prefixId, pathId, slug: tail };
+  function isLikelyUrl(text) {
+    return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(String(text || '').trim());
+  }
+
+  function percentLower(url) {
+    return String(url || '').replace(/%[0-9A-Fa-f]{2}/g, (m) => m.toLowerCase());
+  }
+
+  function encodeOutsideAlphabet(str) {
+    const enc = new TextEncoder();
+    let out = '';
+    for (const ch of String(str || '')) {
+      if (URL_ALPH.indexOf(ch) >= 0) {
+        out += ch;
+      } else {
+        const bytes = enc.encode(ch);
+        for (const by of bytes) out += '%' + by.toString(16).padStart(2, '0');
       }
-      return { prefixId, pathId: 0, slug: rest };
     }
-    throw new Error('対応していないURLです。https://masato-lab.pages.dev/ から始まるURLを入れてください。');
+    return out;
   }
-  function urlFromParts(prefixId, pathId, slug) {
-    if (prefixId < 0 || prefixId >= PREFIXES.length || pathId < 0 || pathId >= PATH_CLASSES.length) throw new Error('invalid dictionary id');
-    const prefix = PREFIXES[prefixId];
-    const path = PATH_CLASSES[pathId];
-    if (path === '') return prefix + slug;
-    return slug ? prefix + path + '/' + slug : prefix + path;
+
+  function normalizeUrl(url) {
+    let raw = String(url || '').trim();
+    if (!raw) return '';
+    if (!isLikelyUrl(raw)) raw = 'https://' + raw;
+    let href;
+    try {
+      href = new URL(raw).href;
+    } catch (_) {
+      throw new Error(currentLang === 'ja' ? 'URLの形を確認してください。' : 'Please check the URL format.');
+    }
+    return encodeOutsideAlphabet(percentLower(href));
   }
-  function slugValues(slug) {
-    if (slug.length > MAX_SLUG) throw new Error(`slug is too long: ${slug.length} > ${MAX_SLUG}`);
+
+  function splitUrl(url) {
+    const finalUrl = normalizeUrl(url);
+    for (let schemeId = 0; schemeId < SCHEMES.length - 1; schemeId++) {
+      const scheme = SCHEMES[schemeId];
+      if (finalUrl.startsWith(scheme)) return { schemeId, rest: finalUrl.slice(scheme.length), url: finalUrl };
+    }
+    return { schemeId: 2, rest: finalUrl, url: finalUrl };
+  }
+
+  function urlFromParts(schemeId, rest) {
+    if (schemeId < 0 || schemeId >= SCHEMES.length) throw new Error('invalid scheme id');
+    return SCHEMES[schemeId] + rest;
+  }
+
+  function restValues(rest, bitCount = MAX_BIT_COUNT) {
+    const maxRest = maxRestForBitCount(bitCount);
+    if (rest.length > maxRest) {
+      throw new Error(currentLang === 'ja'
+        ? `このURLは1枚にするには長すぎます。現在の上限は https:// を除いて ${maxRestOverall()} 文字です。`
+        : `This URL is too long for one pattern. Current limit is ${maxRestOverall()} characters after https://.`);
+    }
     const vals = [];
-    for (const ch of slug) {
-      const idx = SLUG32.indexOf(ch);
-      if (idx < 0) throw new Error(`slug character ${JSON.stringify(ch)} uses unsupported characters: ${SLUG32}`);
+    for (const ch of rest) {
+      const idx = URL_ALPH.indexOf(ch);
+      if (idx < 0) throw new Error(`unsupported URL character: ${JSON.stringify(ch)}`);
       vals.push(idx);
     }
-    while (vals.length < MAX_SLUG) vals.push(0);
     return vals;
   }
-  async function makePlainBits(url, key) {
-    url = normalizeUrl(url);
-    const { prefixId, pathId, slug } = splitUrl(url);
-    const vals = slugValues(slug);
+
+  async function makePlainBits(url, key, bitCount = BIT_COUNT) {
+    const info = splitUrl(url);
+    const vals = restValues(info.rest, bitCount);
     let bits = [];
     bits = bits.concat(intBits(VERSION, 4));
-    bits = bits.concat(intBits(prefixId, 3));
-    bits = bits.concat(intBits(pathId, 4));
-    bits = bits.concat(intBits(slug.length, 5));
-    for (const v of vals) bits = bits.concat(intBits(v, 5));
-    bits = bits.concat(intBits(0, 4));
-    bits = bits.concat(intBits(0, 4));
-    bits = bits.concat(Array.from(await verifierForUrl(url, key)));
-    if (bits.length !== BIT_COUNT) throw new Error(`internal packet size mismatch: ${bits.length} bits`);
-    return { plain: Uint8Array.from(bits), prefixId, pathId, slug };
+    bits = bits.concat(intBits(info.schemeId, 2));
+    bits = bits.concat(intBits(vals.length, 6));
+    for (const v of vals) bits = bits.concat(intBits(v, 6));
+    bits = bits.concat(Array.from(await verifierForUrl(info.url, key)));
+    if (bits.length > bitCount) throw new Error(`internal packet overflow: ${bits.length} > ${bitCount} bits`);
+    while (bits.length < bitCount) bits.push(0);
+    return { plain: Uint8Array.from(bits), schemeId: info.schemeId, rest: info.rest, url: info.url };
   }
+
   async function buildPacket(url, key) {
-    const { plain, prefixId, pathId, slug } = await makePlainBits(url, key);
-    const stream = await streamBits(key, BIT_COUNT);
-    const encrypted = new Uint8Array(BIT_COUNT);
-    for (let i = 0; i < BIT_COUNT; i++) encrypted[i] = plain[i] ^ stream[i];
-    return { url: normalizeUrl(url), plain, encrypted, prefixId, pathId, slug, verifier: await verifierForUrl(normalizeUrl(url), key) };
+    const info = splitUrl(url);
+    const bitCount = bitCountForRestLength(info.rest.length);
+    if (!bitCount) {
+      throw new Error(currentLang === 'ja'
+        ? `このURLは1枚にするには長すぎます。現在の上限は https:// を除いて ${maxRestOverall()} 文字です。`
+        : `This URL is too long for one pattern. Current limit is ${maxRestOverall()} characters after https://.`);
+    }
+    setBitCount(bitCount);
+    const { plain, schemeId, rest, url: finalUrl } = await makePlainBits(info.url, key, bitCount);
+    const stream = await streamBits(key, bitCount);
+    const encrypted = new Uint8Array(bitCount);
+    for (let i = 0; i < bitCount; i++) encrypted[i] = plain[i] ^ stream[i];
+    return { url: finalUrl, plain, encrypted, schemeId, rest, bitCount, verifier: await verifierForUrl(finalUrl, key) };
   }
-  async function parsePlainBits(plain, key) {
+
+  async function parsePlainBits(plain, key, bitCount = plain.length) {
     const b = Array.from(plain);
     let p = 0;
     const version = bitsInt(b.slice(p, p + 4)); p += 4;
     if (version !== VERSION) throw new Error('version mismatch');
-    const prefixId = bitsInt(b.slice(p, p + 3)); p += 3;
-    const pathId = bitsInt(b.slice(p, p + 4)); p += 4;
-    const slugLen = bitsInt(b.slice(p, p + 5)); p += 5;
-    if (slugLen > MAX_SLUG) throw new Error('invalid slug length');
-    const vals = [];
-    for (let i = 0; i < MAX_SLUG; i++) { vals.push(bitsInt(b.slice(p, p + 5))); p += 5; }
-    const flags = bitsInt(b.slice(p, p + 4)); p += 4;
-    const reserved = bitsInt(b.slice(p, p + 4)); p += 4;
-    if (flags !== 0 || reserved !== 0) throw new Error('reserved bits are not zero');
-    const verifier = b.slice(p, p + VERIFIER_BITS); p += VERIFIER_BITS;
-    if (p !== BIT_COUNT) throw new Error('packet length mismatch');
-    let slug = '';
-    for (let i = 0; i < slugLen; i++) {
-      if (vals[i] < 0 || vals[i] >= SLUG32.length) throw new Error('invalid slug code');
-      slug += SLUG32[vals[i]];
+    const schemeId = bitsInt(b.slice(p, p + 2)); p += 2;
+    if (schemeId < 0 || schemeId >= SCHEMES.length) throw new Error('invalid scheme id');
+    const len = bitsInt(b.slice(p, p + 6)); p += 6;
+    if (len < 1 || len > maxRestForBitCount(bitCount)) throw new Error('invalid URL length');
+    const chars = [];
+    for (let i = 0; i < len; i++) {
+      const idx = bitsInt(b.slice(p, p + 6)); p += 6;
+      if (idx < 0 || idx >= URL_ALPH.length) throw new Error('invalid URL code');
+      chars.push(URL_ALPH[idx]);
     }
-    const url = urlFromParts(prefixId, pathId, slug);
+    const url = urlFromParts(schemeId, chars.join(''));
+    const verifier = b.slice(p, p + VERIFIER_BITS); p += VERIFIER_BITS;
     const expectedVerifier = Array.from(await verifierForUrl(url, key));
     const verifierOk = verifier.every((x, i) => x === expectedVerifier[i]);
     return { url, verifierOk };
@@ -508,11 +553,11 @@
     for (let i = 0; i < n; i++) out[i] /= sd;
     return out;
   }
-  function rawReadBits(field, key, size) {
-    const raw = new Uint8Array(BIT_COUNT);
-    const scores = new Float32Array(BIT_COUNT);
+  function rawReadBits(field, key, size, bitCount = BIT_COUNT) {
+    const raw = new Uint8Array(bitCount);
+    const scores = new Float32Array(bitCount);
     const n = size * size;
-    for (let i = 0; i < BIT_COUNT; i++) {
+    for (let i = 0; i < bitCount; i++) {
       const params = basisParams(i, key);
       let score = 0;
       for (let y = 0; y < size; y++) {
@@ -536,34 +581,41 @@
       prefix.pop();
     }
   }
-  async function decodeField(field, key, expectedUrl, size, maxFlip = 4, weakCount = 18) {
-    const { raw, scores } = rawReadBits(field, key, size);
-    const weak = Array.from({ length: BIT_COUNT }, (_, i) => i)
-      .sort((a, b) => Math.abs(scores[a]) - Math.abs(scores[b]))
-      .slice(0, weakCount);
-    const stream = await streamBits(key, BIT_COUNT);
+  async function decodeField(field, key, expectedUrl, size, maxFlip = 4, weakCount = 18, candidates = null) {
+    const ordered = candidates && candidates.length ? candidates.slice() : [activeBitCount, ...BIT_COUNT_STEPS];
+    const bitCounts = [...new Set(ordered.filter((bc) => BIT_COUNT_STEPS.includes(bc)))];
     let bestVerifierUrl = null;
-    let tested = 0;
-    for (const orientation of [1, -1]) {
-      const base = new Uint8Array(BIT_COUNT);
-      for (let i = 0; i < BIT_COUNT; i++) base[i] = orientation === 1 ? raw[i] : 1 - raw[i];
-      for (let r = 0; r <= maxFlip; r++) {
-        for (const flips of combinations(weak, r)) {
-          tested++;
-          const enc = base.slice();
-          for (const idx of flips) enc[idx] ^= 1;
-          const plain = new Uint8Array(BIT_COUNT);
-          for (let i = 0; i < BIT_COUNT; i++) plain[i] = enc[i] ^ stream[i];
-          try {
-            const parsed = await parsePlainBits(plain, key);
-            const exact = !expectedUrl || normalizeUrl(parsed.url) === normalizeUrl(expectedUrl);
-            if (parsed.verifierOk && exact) return { status: 'PASS', ...parsed, exactMatch: exact, orientation, flips, tested };
-            if (parsed.verifierOk && !bestVerifierUrl) bestVerifierUrl = { status: 'FAIL_URL_MISMATCH', ...parsed, exactMatch: false, orientation, flips, tested };
-          } catch (_) {}
+    let testedTotal = 0;
+    for (const bitCount of bitCounts) {
+      const { raw, scores } = rawReadBits(field, key, size, bitCount);
+      const weak = Array.from({ length: bitCount }, (_, i) => i)
+        .sort((a, b) => Math.abs(scores[a]) - Math.abs(scores[b]))
+        .slice(0, weakCount);
+      const stream = await streamBits(key, bitCount);
+      for (const orientation of [1, -1]) {
+        const base = new Uint8Array(bitCount);
+        for (let i = 0; i < bitCount; i++) base[i] = orientation === 1 ? raw[i] : 1 - raw[i];
+        for (let r = 0; r <= maxFlip; r++) {
+          for (const flips of combinations(weak, r)) {
+            testedTotal++;
+            const enc = base.slice();
+            for (const idx of flips) enc[idx] ^= 1;
+            const plain = new Uint8Array(bitCount);
+            for (let i = 0; i < bitCount; i++) plain[i] = enc[i] ^ stream[i];
+            try {
+              const parsed = await parsePlainBits(plain, key, bitCount);
+              const exact = !expectedUrl || normalizeUrl(parsed.url) === normalizeUrl(expectedUrl);
+              if (parsed.verifierOk && exact) {
+                setBitCount(bitCount);
+                return { status: 'PASS', ...parsed, exactMatch: exact, orientation, flips, tested: testedTotal, bitCount };
+              }
+              if (parsed.verifierOk && !bestVerifierUrl) bestVerifierUrl = { status: 'FAIL_URL_MISMATCH', ...parsed, exactMatch: false, orientation, flips, tested: testedTotal, bitCount };
+            } catch (_) {}
+          }
         }
       }
     }
-    return bestVerifierUrl || { status: 'FAIL', url: null, verifierOk: false, exactMatch: false, orientation: 0, flips: [], tested };
+    return bestVerifierUrl || { status: 'FAIL', url: null, verifierOk: false, exactMatch: false, orientation: 0, flips: [], tested: testedTotal, bitCount: null };
   }
   async function decodeCanvas(expectedUrl = currentExpectedUrl(), keyOverride = null) {
     const size = ui.canvas.width;
@@ -590,9 +642,17 @@
       const size = Number(ui.size.value);
       const steps = Number(ui.steps.value);
       const packet = await buildPacket(url, key);
-      setLog(`Turing Cypher packet\n  build      : ${APP_BUILD}\n  url        : ${packet.url}\n  prefix id  : ${packet.prefixId}\n  path id    : ${packet.pathId} (${PATH_CLASSES[packet.pathId]})\n  slug       : '${packet.slug}'\n  bits       : ${packet.encrypted.length} encrypted bits\n\nGenerating Gray-Scott field...`, 'RUNNING');
+      setLog(`Turing Cypher packet
+  build      : ${APP_BUILD}
+  url        : ${packet.url}
+  scheme     : ${SCHEMES[packet.schemeId] || '(none)'}
+  length     : ${packet.rest.length} / ${maxRestForBitCount(packet.bitCount)}
+  bits       : ${packet.encrypted.length} encrypted bits
+  mode       : adaptive ${packet.bitCount}-bit carrier
+
+Generating Gray-Scott field...`, 'RUNNING');
       await sleep(40);
-      const bytes = generateGrayScott(packet.encrypted, key, { size, steps, deltaK: 0.0020, vBias: 0.030 });
+      const bytes = generateGrayScott(packet.encrypted, key, { size, steps, deltaK: 0.0025, vBias: 0.040 });
       drawBytes(bytes, size);
       ui.download.disabled = false;
       ui.decodeCurrent.disabled = false;
@@ -608,7 +668,7 @@
     }
   }
   function printDecodeResult(res, title = 'decode') {
-    const txt = `Turing Cypher ${title}\n  status     : ${res.status}\n  url        : ${res.url}\n  verifier OK: ${!!res.verifierOk}\n  URL verified: ${!!res.verifierOk}\n  orientation: ${res.orientation}\n  flips      : (${(res.flips || []).join(', ')})\n  tested     : ${res.tested || 0}`;
+    const txt = `Turing Cypher ${title}\n  status     : ${res.status}\n  url        : ${res.url}\n  verifier OK: ${!!res.verifierOk}\n  URL verified: ${!!res.verifierOk}\n  carrier    : ${res.bitCount || activeBitCount} bits\n  orientation: ${res.orientation}\n  flips      : (${(res.flips || []).join(', ')})\n  tested     : ${res.tested || 0}`;
     setLog(txt, res.status || 'FAIL');
     showResult(res);
   }
@@ -714,7 +774,7 @@
   applyLang(currentLang);
 
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=ap522-no-answer-url-1').catch(() => {}));
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=turing-any-url-adaptive-bits-1').catch(() => {}));
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (refreshing) return;

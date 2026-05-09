@@ -2,7 +2,7 @@
   "name": "Turing Cypher",
   "short_name": "Turing Cypher",
   "description": "Make a Gray-Scott pattern PNG from a URL and recover it with the same passphrase.",
-  "start_url": "./index.html?v=ap522-clean-lime-1",
+  "start_url": "./index.html?v=turing-any-url-adaptive-bits-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",

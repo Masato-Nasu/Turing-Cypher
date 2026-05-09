@@ -8,10 +8,20 @@
 
 https://turing-cypher.pages.dev/
 
+
+## URL examples
+
+This build accepts ordinary http / https URLs within the one-pattern capacity:
+
+```text
+https://masato-lab.pages.dev/portfolio/multiverse
+https://compe.japandesign.ne.jp/category/product/
+```
+
 ## Screenshot
 
 <p align="center">
-  <img src="./screenshot1.png" alt="screenshot1.png" width="720">
+  <img src="./screenshot1.png" alt="Turing Cypher screenshot" width="720">
 </p>
 
 ## Features
@@ -41,6 +51,41 @@ Information is not attached to the image.
 It inhabits the generative conditions from which the organic form emerges.
 
 Turing Cypher は、QRコードやバーコードのような明示的な記号ではなく、反応拡散によって生まれる有機的な形の中に情報を宿す実験です。
+
+## Deploy
+
+Cloudflare Pages にデプロイする場合:
+
+```powershell
+cd "$env:USERPROFILE\Desktop\Turing_Cypher"
+npx wrangler pages deploy . --project-name turing-cypher
+```
+
+デプロイ後:
+
+```text
+https://turing-cypher.pages.dev/
+```
+
+PWAキャッシュが残る場合は、クエリ付きで確認します。
+
+```text
+https://turing-cypher.pages.dev/?v=turing-any-url-adaptive-bits-1
+```
+
+## Files
+
+```text
+index.html
+style.css
+app.js
+manifest.webmanifest
+sw.js
+icon-192.png
+icon-512.png
+screenshot1.png
+README.md
+```
 
 ## Tags
 

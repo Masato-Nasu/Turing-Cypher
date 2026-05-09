@@ -1,9 +1,9 @@
-const CACHE_NAME = 'turing-cypher-clean-text-1';
+const CACHE_NAME = 'turing-cypher-any-url-adaptive-bits-1';
 const ASSETS = [
-  './?v=ap522-no-answer-url-1',
-  './index.html?v=ap522-no-answer-url-1',
-  './style.css?v=ap522-no-answer-url-1',
-  './app.js?v=ap522-no-answer-url-1',
+  './?v=turing-any-url-adaptive-bits-1',
+  './index.html?v=turing-any-url-adaptive-bits-1',
+  './style.css?v=turing-any-url-adaptive-bits-1',
+  './app.js?v=turing-any-url-adaptive-bits-1',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png'
@@ -27,4 +27,3 @@ self.addEventListener('fetch', (event) => {
   }
   event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
 });
-
