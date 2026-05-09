@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Turing Cypher</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="style.css?v=turing-clean-text-1" />
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <div class="heroTitle">
+        <p class="eyebrow">TRUE TURING CODE</p>
+        <h1>Turing Cypher</h1>
+        <p class="subtitle" data-i18n="subtitle">URLを、1枚の模様にします。同じ合い言葉で、あとからURLに戻せます。</p>
+      </div>
+      <div class="lang" aria-label="Language">
+        <button id="langJa" type="button" class="active">日本語</button>
+        <button id="langEn" type="button">EN</button>
+      </div>
+    </header>
+
+    <section class="notice">
+      <strong data-i18n="leadTitle">できること</strong>
+      <span data-i18n="leadBody">URLを模様PNGにして、そのPNGからURLを読み出します。</span>
+    </section>
+
+    <section class="mainGrid">
+      <div class="panel stepPanel">
+        <div class="stepHead">
+          <span class="stepNo">1</span>
+          <div>
+            <h2 data-i18n="encryptTitle">模様を作る</h2>
+            <p data-i18n="encryptDesc">URLと合い言葉を入れて、暗号化された模様を作ります。</p>
+          </div>
+        </div>
+
+        <label class="field bigField">
+          <span data-i18n="targetUrl">入れるURL</span>
+          <input id="urlInput" spellcheck="false" inputmode="url" autocomplete="off" />
+          <small data-i18n="targetUrlHint">対応：masato-lab.pages.dev の tools / portfolio / peripheral-memory / about。slugは16文字まで。</small>
+        </label>
+
+        <label class="field bigField">
+          <span data-i18n="keySeed">合い言葉（暗号化用）</span>
+          <input id="keyInput" spellcheck="false" autocomplete="new-password" />
+          <small data-i18n="keySeedHint">この合い言葉がないと、あとでURLに戻せません。</small>
+        </label>
+
+        <div class="actions stickyActions">
+          <button id="generateBtn" type="button" class="btn primary" data-i18n="encryptButton">模様を作る</button>
+          <button id="downloadBtn" type="button" class="btn" disabled data-i18n="downloadButton">PNGを保存</button>
+        </div>
+      </div>
+
+      <div class="panel stepPanel">
+        <div class="stepHead">
+          <span class="stepNo">2</span>
+          <div>
+            <h2 data-i18n="decryptTitle">URLに戻す</h2>
+            <p data-i18n="decryptDesc">PNGと、作った時と同じ合い言葉を入れます。</p>
+          </div>
+        </div>
+
+        <div class="fileBox">
+          <label class="fileButton">
+            <span data-i18n="choosePng">PNGを選ぶ</span>
+            <input id="fileInput" type="file" accept="image/png,image/*" />
+          </label>
+          <span id="fileName" class="fileName" data-i18n="noFile">まだ選んでいません</span>
+        </div>
+
+        <label class="field bigField keyRequired">
+          <span data-i18n="decodeKeySeed">合い言葉（復号用・必須）</span>
+          <input id="decodeKeyInput" spellcheck="false" autocomplete="new-password" />
+          <small data-i18n="decodeKeySeedHint">画像を作った時と同じ合い言葉を入れてください。違うと読めません。</small>
+        </label>
+
+
+        <div class="actions stickyActions">
+          <button id="decodeLoadedBtn" type="button" class="btn primary" disabled data-i18n="decryptLoaded">選んだPNGを読む</button>
+          <button id="decodeCurrentBtn" type="button" class="btn" data-i18n="decryptCurrent">上の模様を読む</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="outputGrid">
+      <div class="panel imagePanel">
+        <div class="panelTop">
+          <h2 data-i18n="imageTitle">模様</h2>
+          <span id="imageMeta" class="meta">no image</span>
+        </div>
+        <canvas id="canvas" width="256" height="256" aria-label="Turing Cypher image"></canvas>
+      </div>
+
+      <div class="panel resultPanel">
+        <div class="panelTop">
+          <h2 data-i18n="resultTitle">読み出したURL</h2>
+          <span class="status" id="statusBadge">READY</span>
+        </div>
+        <div class="resultBox">
+          <p id="resultStatusText" class="resultStatus" data-i18n="resultWaiting">ここに結果が出ます。</p>
+          <label class="field resultField">
+            <span data-i18n="resultLabel">URL</span>
+            <textarea id="resultUrl" readonly></textarea>
+          </label>
+          <button id="copyResultBtn" type="button" class="btn copy" disabled data-i18n="copyResult">URLをコピー</button>
+        </div>
+        <details class="details">
+          <summary data-i18n="detailsTitle">くわしいログを見る</summary>
+          <pre id="log" aria-live="polite">Ready.</pre>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel helpPanel">
+      <h2 data-i18n="guideTitle">使い方</h2>
+      <ol>
+        <li data-i18n="guide1">URLと合い言葉を入れて「模様を作る」を押します。</li>
+        <li data-i18n="guide2">できたPNGを保存します。</li>
+        <li data-i18n="guide3">復号するときは、PNGを選び、同じ合い言葉を入れて「読む」を押します。</li>
+      </ol>
+    </section>
+
+    <select id="sizeInput" class="visuallyHidden" aria-hidden="true" tabindex="-1">
+      <option value="384" selected>384</option>
+    </select>
+    <input id="stepsInput" class="visuallyHidden" aria-hidden="true" tabindex="-1" type="number" value="1000" />
+  </main>
+  <script src="app.js?v=turing-clean-text-1"></script>
+</body>
+</html>
